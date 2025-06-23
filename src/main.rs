@@ -61,7 +61,7 @@ enum WorkItem<'a>  {
     Garbage,
 }
 
-#[derive(Collect)]
+#[derive(Collect, Clone, Copy)]
 #[collect(require_static)]
 enum Direction {
     Left,
@@ -101,31 +101,39 @@ impl<'a> SplayNode<'a> {
     pub fn set_child(&mut self, direction: Direction, child: Option<GcRefLock<'a, Self>>) {
         self.children[direction as usize] = child;
     }
-    pub fn direction(this: NodePtr<'a>, parent: NodePtr<'a>) -> Option<Direction> {
-        let parent = parent.borrow();
+    pub fn direction(node: NodePtr<'a>, parent: NodePtr<'a>) -> Option<Direction> {
+        let this = node.borrow();
+        let parent = this.parent?.borrow();
         if let Some(child) = parent.get_child(Direction::Left) {
-            if Gc::ptr_eq(child, this) {
+            if Gc::ptr_eq(child, node) {
                 return Some(Direction::Left);
             }
         }
         if let Some(child) = parent.get_child(Direction::Right) {
-            if Gc::ptr_eq(child, this) {
+            if Gc::ptr_eq(child, node) {
                 return Some(Direction::Right);
             }
         }
         None
     }
-    pub fn rotate(mc: &Mutation<'a>, mut node: NodePtr<'a>) {
-        let Some(mut parent) = node.borrow().parent else {
-            unreachable!("cannot rotate root")
-        };
-        let Some(dir) = Self::direction(node, parent) else {
-            unreachable!("parent should be connected to child")
-        };
-        if let Some(grandparent) = parent.borrow().parent {
-            // let Some(parent_dir)
-            // grandparent.borrow_mut(mc).set_child(direction, child);
+    pub fn rotate(mc: &Mutation<'a>, node: NodePtr<'a>) {
+        let parent = node.borrow().parent.expect("rotated node should have a parent");
+        let grandparent = parent.borrow().parent;
+        let dir = Self::direction(node, parent).expect("rotated node should be a child of its parent");
+        if let Some(grandparent) = grandparent {
+            let parent_dir = Self::direction(parent, grandparent).expect("parent should be a child of its parent");
+            grandparent.borrow_mut(mc).set_child(parent_dir, Some(node));
         }
+        node.borrow_mut(mc).parent = grandparent;
+
+        let target_child = node.borrow().get_child(!dir);
+        parent.borrow_mut(mc).set_child(dir, target_child);
+        if let Some(target_child) = target_child {
+            target_child.borrow_mut(mc).parent = Some(parent);
+        }
+
+        node.borrow_mut(mc).set_child(!dir, Some(parent));
+        parent.borrow_mut(mc).parent = Some(node);
     }
     
 }
