@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+anyhow = "1.0.98"
 gc-arena = { git = "https://github.com/kyren/gc-arena.git", features = ["tracing", "hashbrown"] }
 im-rc = "15.1.0"
