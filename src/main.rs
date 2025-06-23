@@ -44,7 +44,7 @@ enum Judgment<'a> {
         replace: usize,
         nested: Gc<'a, Self>,
     },
-    ApplyInfer {
+    AppInfer {
         func: Gc<'a, Ty<'a>>,
         expr: Gc<'a, Expr<'a>>,
         replace: usize,
